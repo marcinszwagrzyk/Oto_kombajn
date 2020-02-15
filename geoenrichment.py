@@ -20,9 +20,6 @@ class Geoenrichment:
         # DataFrame with x,y to GeoDataFrame
         gdf = gpd.GeoDataFrame(datafame, geometry=gpd.points_from_xy(x=datafame.longitude, y=datafame.latitude),
                                crs={'init': 'epsg:4326'})
-        gdf = gdf.loc[gdf['latitude'] < 50.2]
-        gdf = gdf.loc[gdf['latitude'] > 49]
-        gdf = gdf.loc[gdf['longitude'] < 21]
         # reprojekcja do Panstwowego Ukladu Wspolrzednych Geodezyjnych PUWG1992
         gdf = gdf.to_crs({'init': 'epsg:2180'})
         return gdf
@@ -52,7 +49,7 @@ class Geoenrichment:
             if len(slowo) > 4:
                 for ulica in self.lista_nazw:
                     ratio = SequenceMatcher(None, slowo, ulica).ratio()
-                    if ratio > 0.85:
+                    if ratio > 0.75:
                         return ulica
 
     def geokoduj(self, dataframe, pole):
@@ -131,7 +128,7 @@ class Geoenrichment:
 
         #  2 - add field with street name base on list
         dataframe['ulica'] = dataframe['opis'].apply(self.szukaj_ulicy)
-        dataframe['lokator_ulica_dzielnica'] = "Kraków, " + dataframe['dzielnica'] + ", " + dataframe['ulica']
+        dataframe['lokator_ulica_dzielnica'] =  dataframe['dzielnica'] + ", " + dataframe['ulica']
 
         #  3 - geocode base one street name
         geokoduj = self.geokoduj(dataframe.loc[dataframe["ulica"].notnull()], 'lokator_ulica_dzielnica')

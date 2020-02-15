@@ -1,6 +1,8 @@
-from main import OtodomParser
+from main import Otodomer
+from parseter import Parseter
 import os
 from datetime import datetime
+
 
 if __name__ == '__main__':
     url = 'https://www.otodom.pl/sprzedaz/mieszkanie/krakow/?search%5Bdescription%5D=1&search%5Bcreated_since%\
@@ -9,8 +11,10 @@ if __name__ == '__main__':
     slownik_warstw = {'vist_dist': r'shp\osm_vistula_92.shp', 'trams_dist': r'shp\tram_stops.shp'}
 
     # TO DO LIST
-    # wczytyac csv i robic gpd - i GEOENRICHMENT dla calosci jescze raz!!
-    # sklejac caly raport w one slider
+    # rozdzielic calkiem parsing, skupic sie na wyborze modelu ML/DL
+    # dodac NLP - jako czesc kazdej z metod
+    # dodac dummmy dzielnice ?
+    # wizualizacje, lacznie z mapami przesunac do Tableu
 
     # Opcje:
     #   1 - czytaj stary plik,
@@ -25,24 +29,20 @@ if __name__ == '__main__':
     ogloszenia_robocze = os.path.join(folder, "ogloszenia.csv")
     ogloszenia_nowe = os.path.join(folder, "ogloszenia_nowe.csv")
 
-    if opcja == 1:
-        parser = OtodomParser(url, 100, slownik_warstw, # warstwy GIS
-                              ogloszenia_all, ogloszenia_all, ogloszenia_nowe, folder)
-        parser.analizuj_df()
-
-    elif opcja == 2:
+    if opcja == 2:
         try:
             if os.path.exists(folder):
                 os.remove(folder)
             os.mkdir(folder)
         except Exception as e:
             print(e)
-        parser = OtodomParser(url, 100, # liczba stron
-                              slownik_warstw,     # slownik warstw - map zmiennych objasniajacych
-                              ogloszenia_robocze, # robocze csv
-                              ogloszenia_all,     # csv na polaczone
-                              ogloszenia_nowe,    # csv na tylko nowe
-                              folder)
-        parser.parse()
-        parser.spacjalizuj()
-        parser.analizuj_df()
+        parser = Parseter(url,              # adres url
+                        2,                  # last page
+                        ogloszenia_robocze, # robocze csv
+                        ogloszenia_all,     # csv na polaczone (stare + nowe)
+                        ogloszenia_nowe,    # csv na tylko nowe
+                        folder)
+
+        otodomer = Otodomer(slownik_warstw, ogloszenia_robocze, ogloszenia_nowe, ogloszenia_all, folder)
+        otodomer.spacjalizuj()
+        otodomer.analizuj_df()

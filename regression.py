@@ -1,24 +1,29 @@
 import numpy as np
-from sklearn.pipeline import Pipeline
+import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split
+from sklearn.svm import SVR
+from sklearn.linear_model import RidgeCV
+from sklearn.linear_model import ElasticNet
+from sklearn.model_selection import GridSearchCV
+from sklearn.linear_model import LassoCV
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import StandardScaler
 from pandas import DataFrame
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
-import pandas as pd
-from sklearn.svm import SVR
-from sklearn.linear_model import RidgeCV
-from sklearn.linear_model import ElasticNet
-from sklearn.model_selection import GridSearchCV
-from sklearn.linear_model import LassoCV
+from sklearn.pipeline import FeatureUnion
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import FunctionTransformer
+from sklearn.feature_extraction.text import CountVectorizer
 
 class MyLinearRegression():
-    def __init__(self) -> object:
+    def __init__(self, folder) -> object:
         self.r2 = 0
         self.coef_df = 0
+        self.folder = folder
+        self.lista_df = []
 
     def __repr__(self):
         return "I am a Linear Regression model!"
@@ -31,6 +36,14 @@ class MyLinearRegression():
         c = df[cols].corr()
         sns.heatmap(c, cmap="BrBG", annot=True)
         plt.savefig(os.path.join(folder, "corr_matrix.jpg"), bbox_inches='tight')
+
+    def pairplot(self, df, cols, folder):
+        """"
+                plots corr matrix of explanatory variables
+                """
+        plt.figure(figsize=(10, 5))
+        sns.pairplot(df[cols], diag_kind="kde")
+        plt.savefig(os.path.join(folder, "pairplot.jpg"), bbox_inches='tight')
 
     def draw_history(self, df, folder):
         """"
@@ -57,8 +70,26 @@ class MyLinearRegression():
         _ = sns.distplot(df['cena_za_metr']).set_title('housing prices (PLN per sq m)')
         plt.savefig(os.path.join(folder, "prices_histogram.jpg"))
 
+    def fit_nlp(self, X: object, y: object, dataframe: object, tekstowe):
+        get_text_data = FunctionTransformer(lambda x: x[tekstowe], validate=False)
+        get_numeric_data = FunctionTransformer(lambda x: x[X], validate=False)
 
-    def fit_model(self, X: object, y: object, dataframe: object, reg, lambda_il = 0, cv=0) -> object:
+        X_train, X_test, y_train, y_test = train_test_split(dataframe[X], dataframe[y], test_size=0.1)
+
+        process_and_join_features = Pipeline([
+            ('features', FeatureUnion([
+                ('numeric_features', Pipeline([
+                    ('selector', get_numeric_data)
+                ])),
+                ('text_features', Pipeline([
+                    ('selector', get_text_data),
+                    ('vec', CountVectorizer())
+                ]))
+            ])),
+            ('linreg', LinearRegression)
+        ])
+
+    def fit_model(self, X: object, y: object, dataframe: object, reg, cv=0 ):
         """
         Fit ridge regression model coefficients from a Pandas DataFrame.
         Arguments:
@@ -73,7 +104,6 @@ class MyLinearRegression():
                 type(y) == str
         ), "y must be a string - name of the column you want as target"
 
-        # Create the hyperparameter grid
 
         if reg == 'linreg':
             model = LinearRegression()
@@ -91,12 +121,14 @@ class MyLinearRegression():
             model = LassoCV(cv=cv, random_state=0)
 
         # Split using ALL data in sample_df
-        X_train, X_test, y_train, y_test = train_test_split(dataframe[X], dataframe[y], test_size=0.25)
+        X_train, X_test, y_train, y_test = train_test_split(dataframe[X], dataframe[y], test_size=0.2)
+        liczba_obserwacji = X_train.shape[0]
 
         # Setup the pipeline steps: steps
-        steps = [('imputation', SimpleImputer(missing_values=np.NAN, strategy='mean')),
-                     ('scaler', StandardScaler()),
-                     ('reg', model)]
+        steps = [
+                ('imputation', SimpleImputer(missing_values=np.NAN, strategy='mean')),
+                ('scaler', StandardScaler()),
+                ('reg', model)]
 
         # Create the pipeline: pipeline
         self.pipeline = Pipeline(steps)
@@ -106,9 +138,9 @@ class MyLinearRegression():
 
         # Compute and print the metrics
         self.r2 = self.pipeline.score(X_test, y_test)
-        print("{} model, R2 przy zmiennych {} , wynosi {}".format(reg, X, self.r2))
+        print("{} model, R2 przy zmiennych {} , wynosi {}. {} obserwacji".format(reg, X, self.r2, liczba_obserwacji))
 
-        self.predict(self.pipeline, X, dataframe)
+        self.lista_df.append(self.predict(self.pipeline, X, dataframe, reg, self.folder))
 
         # coefficents df - only for
         if reg in ['linreg']:
@@ -116,7 +148,12 @@ class MyLinearRegression():
             self.coef_df.columns = ['variable', 'impact of max on price']
             # print(self.coef_df)
 
-    def predict(self, pipeline, X, dataframe):
+        df_pred = pd.concat(self.lista_df, axis=1)
+        df_pred = df_pred.loc[:, ~df_pred.columns.duplicated()]
+        return df_pred
+
+
+    def predict(self, pipeline, X, dataframe, reg, folder):
         """Output model prediction.
         Arguments:
         X:
@@ -124,6 +161,8 @@ class MyLinearRegression():
         """
         dataframe['cena_pred'] = pipeline.predict(dataframe[X])
         df = dataframe[['cena_za_metr', 'cena_pred']]
-        df.plot()
-        # print(df.head())
-        return (dataframe)
+        df.reset_index(inplace=True)
+        df = df.sort_values('cena_za_metr')
+        df = df.rename(columns={'cena_pred': reg})
+        return(df)
+        # print(df.head(14))
