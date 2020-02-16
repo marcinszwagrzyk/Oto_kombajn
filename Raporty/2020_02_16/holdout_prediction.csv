@@ -1,0 +1,2 @@
+,index,cena_za_metr,linreg,index,cena_za_metr,ridge,index,cena_za_metr,svm,index,cena_za_metr,lasso_CV,index,cena_za_metr,nlp,mean_regres,mean_predict
+0,0,0.0,9076.500008711737,0,0.0,9005.409767048302,0,0.0,9327.341611027055,0,0.0,9005.391325044146,0,0.0,9203.151649814683,9029.100366934728,9116.126008374706
