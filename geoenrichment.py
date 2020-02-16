@@ -41,16 +41,18 @@ class Geoenrichment:
             dzielnica = i.dzielnica
             if dzielnica not in self.lista_dzielnic:
                 self.lista_dzielnic.append(dzielnica)
-        self.lista_dzielnic.append(['Justowska', 'Ruczaj'])
+        reczna_lista_dzielnic = ['Justowska', 'Ruczaj', 'Bronowice', 'Osiedle', "Kraków"]
+        self.lista_dzielnic = self.lista_dzielnic + reczna_lista_dzielnic
 
     def szukaj_ulicy(self, cell):
         opis_list = cell.split(" ")
         for slowo in opis_list:
             if len(slowo) > 4:
                 for ulica in self.lista_nazw:
-                    ratio = SequenceMatcher(None, slowo, ulica).ratio()
-                    if ratio > 0.75:
-                        return ulica
+                    if ulica not in self.lista_dzielnic:
+                        ratio = SequenceMatcher(None, slowo, ulica).ratio()
+                        if ratio > 0.85:
+                            return ulica
 
     def geokoduj(self, dataframe, pole):
         dataframe['geo_location'] = dataframe[pole].apply(self.geocode)

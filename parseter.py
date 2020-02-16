@@ -14,7 +14,7 @@ class Parseter:
         self.actual_page = 1
         self.last_page_number = last_page_number
         self.lista_linkow = []
-        self.l_powt = 5
+        self.l_powt = 50
         self.folder = folder
         if type(address_string) is not str:
             raise Exception("Address string can't be empty or not str type.")

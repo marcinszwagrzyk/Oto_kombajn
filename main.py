@@ -6,7 +6,7 @@ from geoenrichment import Geoenrichment
 # -*- coding: utf-8 -*-
 
 class Otodomer:
-    def __init__(self, slownik_warstw, ogloszenia_robocze, ogloszenia_nowe, ogloszenia_all, folder):
+    def __init__(self, slownik_warstw, ogloszenia_robocze, ogloszenia_nowe, ogloszenia_all, holdout, folder):
         self.regression = MyLinearRegression(folder)
         # self.nn = MyNeuralNetwork()
         self.geoenrichment = Geoenrichment()
@@ -17,15 +17,18 @@ class Otodomer:
         self.ogloszenia_nowe = ogloszenia_nowe
         self.ogloszenia_all = ogloszenia_all
         self.folder = folder
+        self.holdout = holdout
+        self.holdout_cleaned = ""
+        self.holdout_spatial = r'c:\Users\marci\git\Oto_klasor\holdout\mwm_spatial.csv'
         self.colnames = ['opis', 'dzielnica', 'pokoje', 'cena', 'metraz', 'cena_za_metr', 'link', 'data']
-
+        self.lista_holdout_pred =[]
 
     @staticmethod
     def data_cleaning(df, numeric_columns):
         df[numeric_columns] = df[numeric_columns].replace(['>', ' ', '/',
                                                            'pokoje', 'pokój', 'pokoi', 'zł', 'm²'], '', regex=True)
         df[numeric_columns] = df[numeric_columns].replace([','], '.', regex=True)
-        df = df.drop_duplicates(['opis'], keep='first')
+        df = df.drop_duplicates(subset = ['opis', 'metraz'], keep='first')
         for pole in numeric_columns:
             df = df[pd.to_numeric(df[pole], errors='coerce').notnull()]
         df[numeric_columns] = df[numeric_columns].astype(float)
@@ -50,34 +53,63 @@ class Otodomer:
         # wczytuje df, robi GDF i dopsiuje wartosci zmiennych z mapy
         gdf = self.geoenrichment.make_gdf(df_concat)
         gdf_enriched = self.geoenrichment.geoenrich(gdf, self.slownik_warstw, self.folder)
+
         gdf_enriched.to_csv(self.ogloszenia_all, sep=";")
+
+    def spacjalizauj_holdout(self):
+        self.holdout = pd.read_csv(self.holdout, sep=";", names=self.colnames, header=None, error_bad_lines=False)
+        self.holdout_cleaned = self.data_cleaning(self.holdout, numeric_columns=['cena_za_metr', 'metraz', 'cena'])
+        holdout_nowe = self.geoenrichment.make_spatial(self.holdout_cleaned)
+        holdout_nowe_enriched = self.geoenrichment.geoenrich(holdout_nowe, self.slownik_warstw, self.folder)
+        holdout_nowe_enriched.to_csv(self.holdout_spatial, sep=";")
 
     def analizuj_df(self):
         self.gdf_polaczony = pd.read_csv(self.ogloszenia_all, sep=";", error_bad_lines=False)
         self.regression.draw_history(self.gdf_polaczony, self.folder)
-
-        # wywalamy outliers
-        # self.gdf_polaczony = self.gdf_polaczony.loc[self.gdf_polaczony['cena_za_metr'] < 17500]
+        self.gdf_holdout = pd.read_csv(self.holdout_spatial, sep=";", error_bad_lines=False)
 
         # analiza statystyczna
-        lista_zmiennych = ['dst_center', 'metraz', 'latitude', 'longitude']
-        lista_zmiennych_txt = ['dst_center', 'metraz', 'latitude', 'longitude', 'opis']
-        #  lista_zmiennych = ['dst_center', 'metraz']
-
+        lista_zmiennych = ['dst_center', 'metraz']
         for k, v in self.slownik_warstw.items():
             lista_zmiennych.append(k)
 
+        # wywalamy outliers
         self.gdf_polaczony = self.gdf_polaczony.loc[self.gdf_polaczony['cena_za_metr'] < 16000]
-        #self.regression.corr_matrix(self.gdf_polaczony, lista_zmiennych, self.folder)
+        # self.regression.corr_matrix(self.gdf_polaczony, lista_zmiennych, self.folder)
 
-        self.regression.pairplot(self.gdf_polaczony, lista_zmiennych, self.folder)
-        self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'linreg', cv=15)
-        self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'ridge', cv=15)
-        self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'svm', self.folder)
-        df_pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'lasso_CV',  cv=15)
-        df_pred.to_csv(os.path.join(self.folder, "prediction.csv"))
+        # pairplot
+        self.regression.pairplot(self.gdf_polaczony, lista_zmiennych, self.folder, "variables")
 
-        # self.regression.fit_nlp(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'opis')
+        # regresje - to na pewno zapakowac do petli - i od razu liczyc holdout
+        pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'linreg', cv=15)
+        pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'ridge', cv=15)
+        pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony,  'svm', self.folder)
+        pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony,  'lasso_CV', cv=15)
+
+        # predict holdout za pomoca regresji
+        self.model = pred[0]
+        self.lista_holdout_pred.append(self.regression.predict(self.model, lista_zmiennych, self.gdf_holdout, 'lasso_CV'))
+
+        # NLP
+        lista_zmiennych='opis'
+        pred = self.regression.fit_nlp(lista_zmiennych, 'cena_za_metr',  self.gdf_polaczony)
+
+        # predict holdout za pomoca nlp
+        self.model = pred[0]
+        self.lista_holdout_pred.append(self.regression.predict(self.model, lista_zmiennych, self.gdf_holdout, 'nlp'))
+
+        df_holdout_pred = pd.concat(self.lista_holdout_pred, axis=1)
+        df_holdout_pred = df_holdout_pred.loc[:, ~df_holdout_pred.columns.duplicated()]
+        df_holdout_pred.to_csv(os.path.join(self.folder, "holdout_prediction.csv"))
+
+        # # podsumewanie regresji
+        # df_pred = pred[1]
+        # df_pred['mean_regres'] = df_pred[['linreg', 'ridge', 'lasso_CV']].mean(axis=1)
+        # df_pred['mean_predict'] = df_pred[['mean_regres', 'nlp']].mean(axis=1)
+        # df_pred.to_csv(os.path.join(self.folder, "prediction.csv"))
+        # cols = ['cena_za_metr', 'mean_regres', 'nlp', 'mean_predict']
+        # self.regression.pairplot(df_pred, cols, self.folder, "prediction")
+
         # neural network - kompletnie fatalne wyniki !
         # self.nn.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony)
 
