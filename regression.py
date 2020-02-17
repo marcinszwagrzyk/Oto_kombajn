@@ -111,7 +111,7 @@ class MyLinearRegression():
         elif reg == 'ridge':
             model = RidgeCV(cv=cv)
         elif reg == 'svm':
-            model = SVR(C=1.0, epsilon=0.2)
+            model = SVR(kernel='poly', C=100, gamma='auto', degree=3, epsilon=.1,coef0=1)
         elif reg == 'elastic_CV':
             elastic_net = ElasticNet()
             l1_space = np.linspace(0, 1, 30)

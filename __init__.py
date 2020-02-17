@@ -7,7 +7,8 @@ if __name__ == '__main__':
     url = 'https://www.otodom.pl/sprzedaz/mieszkanie/krakow/?search%5Bdescription%5D=1&search%5Bcreated_since%\
     5D=14&search%5Bsubregion_id%5D=410&search%5Bcity_id%5D=38'
 
-    slownik_warstw = {'vist_dist': r'shp\osm_vistula_92.shp', 'trams_dist': r'shp\tram_stops.shp'}
+    slownik_warstw = {'vist_dist': r'shp\osm_vistula_92.shp', 'trams_dist': r'shp\tram_stops.shp',
+                      'parks': r'shp\osm_parks92_2.shp'}
 
     # Opcje:
     #   1 - czytaj stary plik,
@@ -25,7 +26,6 @@ if __name__ == '__main__':
     ogloszenia_nowe = os.path.join(folder, "ogloszenia_nowe.csv")
     holdout = r'c:\Users\marci\git\Oto_klasor\holdout\mwm.csv'
 
-
     if opcja == 2:
         try:
             if os.path.exists(folder):
@@ -35,15 +35,15 @@ if __name__ == '__main__':
             print(e)
 
         parser = Parseter(url,              # adres url
-                        50,                  # last page
+                        2,                  # last page
                         ogloszenia_robocze, # robocze csv
                         ogloszenia_all,     # csv na polaczone (stare + nowe)
                         ogloszenia_nowe,    # csv na tylko nowe
                         folder)
         parser.parse()
         otodomer = Otodomer(slownik_warstw, ogloszenia_robocze, ogloszenia_nowe, ogloszenia_all, holdout, folder)
-        otodomer.spacjalizuj()
         otodomer.spacjalizauj_holdout()
+        otodomer.spacjalizuj()
         otodomer.analizuj_df()
 
     # bez web scrapingu

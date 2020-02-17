@@ -68,15 +68,15 @@ class Geoenrichment:
         plt.rcParams['font.family'] = 'sans-serif'
 
         krk_border = gpd.read_file(r'shp\krk_border.shp')
-        ax = krk_border.plot(color='gainsboro', edgecolor='black')
+        ax = krk_border.plot(color='lightgray', edgecolor='black')
         ax.set_title("{} of housing offers, no of offers: {}".format(field, liczba))
         ax.legend()
         rds.plot(ax=ax, color='black', linewidth=0.1);
-        geodataframe.plot(ax=ax, marker='o', column=field, cmap='YlOrRd', markersize=5);
+        geodataframe.plot(ax=ax, marker='o', column=field, cmap='Reds', markersize=5);
         # colorbar will be created by ...
         fig = ax.get_figure()
         cbax = fig.add_axes([0.95, 0.3, 0.03, 0.39])
-        colormap = "copper_r"  # add _r to reverse the colormap
+        colormap = "Reds"  # add _r to reverse the colormap
         vmin_gdf = geodataframe[field].min()
         vmax_gdf = geodataframe[field].max()
         sm = plt.cm.ScalarMappable(cmap=colormap, \
@@ -119,34 +119,28 @@ class Geoenrichment:
             return gdf_warstwa.distance(point).min()
 
         geodataframe[field] = geodataframe.geometry.apply(min_distance,
-                                                          args=(gdf_warstwa,))  #
+                                                          args=(gdf_warstwa,))
+        geodataframe = geodataframe.loc[geodataframe[field] < 30000] # usuniecie blednie zgeolokalizowanych
         return geodataframe
 
     def make_spatial(self, dataframe):
         geocode = RateLimiter(self.locator.geocode, min_delay_seconds=1)
-
         #  1 - prepare street names list
         self.rob_liste_ulic(dataframe)
-
         #  2 - add field with street name base on list
         dataframe['ulica'] = dataframe['opis'].apply(self.szukaj_ulicy)
-        dataframe['lokator_ulica_dzielnica'] =  dataframe['dzielnica'] + ", " + dataframe['ulica']
-
+        dataframe['lokator_ulica_dzielnica'] = dataframe['dzielnica'] + ", " + dataframe['ulica']
         #  3 - geocode base one street name
         geokoduj = self.geokoduj(dataframe.loc[dataframe["ulica"].notnull()], 'lokator_ulica_dzielnica')
         located = geokoduj[0]
-
         il_ogloszen = located.shape[0]
         print('we have {} geocoded offers out of all {}'.format(il_ogloszen, dataframe.shape[0]))
         if il_ogloszen == 0:
             return 0
-
         # 4 - create longitude, laatitude and altitude from location column (returns tuple)
         located['point'] = located['geo_location'].apply(lambda loc: tuple(loc.point) if loc else None)
-
         # 5 - split point column into latitude, longitude and altitude columns
         located[['latitude', 'longitude', 'altitude']] = pd.DataFrame(located['point'].tolist(), index=located.index)
-
         # 6 - make geodataframe base on lat lon
         gdf = self.make_gdf(located)
 
@@ -157,7 +151,14 @@ class Geoenrichment:
     def geoenrich(self, gdf, slownik_warstw, folder):
         # 7 - oblicz odleglosc do centrum
         gdf['dst_center'] = gdf.apply(self.haversine, axis=1)
-        self.plot_offers(gdf, 'cena_za_metr', folder)
+        gdf = gdf.loc[gdf['dst_center'] < 30000]
+
+        # zaminieamy drozsze niz 15 000 na 15000, zeby nie bylo ich na mapie, zeby nie zaciemnialy
+        seria = gdf['cena_za_metr']
+        gdf['cena_za_metr2'] = [15000 if rekord > 15000 else rekord for rekord in seria]
+        self.plot_offers(gdf, 'cena_za_metr2', folder)
+        # dodac plotowanie heatmapy folium
+
         for k, v in slownik_warstw.items():
             gdf = self.dist_layer(gdf, v, k)
             self.plot_offers(gdf, k, folder)

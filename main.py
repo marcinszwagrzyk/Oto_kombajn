@@ -103,12 +103,12 @@ class Otodomer:
         df_holdout_pred.to_csv(os.path.join(self.folder, "holdout_prediction.csv"))
 
         # # podsumewanie regresji
-        # df_pred = pred[1]
-        # df_pred['mean_regres'] = df_pred[['linreg', 'ridge', 'lasso_CV']].mean(axis=1)
-        # df_pred['mean_predict'] = df_pred[['mean_regres', 'nlp']].mean(axis=1)
-        # df_pred.to_csv(os.path.join(self.folder, "prediction.csv"))
-        # cols = ['cena_za_metr', 'mean_regres', 'nlp', 'mean_predict']
-        # self.regression.pairplot(df_pred, cols, self.folder, "prediction")
+        df_pred = pred[1]
+        df_pred['mean_regres'] = df_pred[['linreg', 'ridge', 'lasso_CV']].mean(axis=1)
+        df_pred['mean_predict'] = df_pred[['mean_regres', 'nlp', 'svm']].mean(axis=1)
+        df_pred.to_csv(os.path.join(self.folder, "prediction.csv"))
+        cols = ['cena_za_metr', 'mean_regres', 'nlp', 'mean_predict']
+        self.regression.pairplot(df_pred, cols, self.folder, "prediction")
 
         # neural network - kompletnie fatalne wyniki !
         # self.nn.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony)
