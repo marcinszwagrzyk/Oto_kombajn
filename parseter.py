@@ -2,6 +2,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 import datetime
+import numpy as np
 
 
 # -*- coding: utf-8 -*-
@@ -49,6 +50,41 @@ class Parseter:
         df[numeric_columns] = df[numeric_columns].astype(float)
         return df
 
+    # wchodzimy do ogloszenia i dodajemy wiecej zmiennych
+    def parse_wglab(self, url):
+        r = requests.get(url)
+        soup = BeautifulSoup(r.content, 'html.parser')
+        lista_slow = ['Rok budowy: ', 'Piętro: ', 'Liczba pięter: ']
+        lista_slow2 = ['<li>', '</strong>', '<strong>', '</li>', '&gt;']
+        lista_slow3 = lista_slow + lista_slow2
+
+        vals = soup.find_all("li")
+        lista_val = []
+        licznik =0
+        for val in vals:
+            val_str = str(val)
+            try:
+                for slowo in lista_slow:
+                    if slowo in val_str:
+                        licznik =+1
+                        if licznik > 2:
+                            lista_val = [np.nan, np.nan, np.nan]
+                            return lista_val
+                            break
+                        for slowo_zbedne in lista_slow3:
+                            val_str = val_str.replace(slowo_zbedne, "")
+                            if val_str == 'parter':
+                                val_str = '0'
+                        lista_val.append(val_str)
+            except:
+                lista_val = ["", "", ""]
+                return lista_val
+
+        if len(lista_val) !=3:
+            lista_val = ["", "", ""]
+            return lista_val
+        return lista_val
+
     def parse(self):
         self.liczba_ogloszen = 0
         self.licznik = 0
@@ -68,12 +104,14 @@ class Parseter:
                 offer_as_list = self.prepare_list_from_offer(offer)
                 offer_as_list = self.remove_blank_strings(offer_as_list)
                 offer_as_list = self.remove_unnecessary_elements(offer_as_list)
-                offer_as_list.append(offer.find('a').attrs['href'])
+                link = offer.find('a').attrs['href']
+                offer_as_list.append(link)
+                lista_dod = self.parse_wglab(link)
                 offer_as_list.append(str(datetime.datetime.now()))
-                try:
-                    link = offer_as_list[7]
-                except:
-                    pass
+                offer_as_list.append(lista_dod[0])
+                offer_as_list.append(lista_dod[1])
+                offer_as_list.append(lista_dod[2])
+
                 if link in lista_linkow_nowa:
                     licznik_kryt += 1
                     if licznik_kryt > self.l_powt:
@@ -87,7 +125,7 @@ class Parseter:
 
                 if link not in self.lista_linkow:
                     if link not in lista_linkow_nowa:
-                        result_list.append(';'.join(offer_as_list[1:]))
+                        result_list.append(';'.join(offer_as_list))
                         lista_linkow_nowa.append(link)
                 else:
                     self.licznik_powtorzen += 1

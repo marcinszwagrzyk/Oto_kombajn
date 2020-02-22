@@ -6,6 +6,7 @@ pd.set_option('mode.chained_assignment', None)
 import matplotlib.pyplot as plt
 from geopy.extra.rate_limiter import RateLimiter
 import os
+import numpy as np
 
 
 class Geoenrichment:
@@ -17,6 +18,7 @@ class Geoenrichment:
         return "Class for geospatial stuff"
 
     def make_gdf(self, datafame):
+        print(datafame)
         # DataFrame with x,y to GeoDataFrame
         gdf = gpd.GeoDataFrame(datafame, geometry=gpd.points_from_xy(x=datafame.longitude, y=datafame.latitude),
                                crs={'init': 'epsg:4326'})
@@ -39,7 +41,8 @@ class Geoenrichment:
         self.lista_dzielnic = []
         self.lista_dzielnic = ['Justowska', 'Ruczaj', 'Bronowice', 'Osiedle', "Kraków", "Krakowa", "Nowe", "Nowa",
                                "Nowy", "Krakowska", "Krakusów", "budowie", "parkingu", "piękna", "Kraka", "Piękna",
-                               "Zielona", "Kazimierz", "Prądnika"]
+                               "Zielona", "Kazimierz", "Prądnika", "Starego", "Ogrodem", "Dębnicki", "Jasna", "Wygooda",
+                               "Rynek", "Dzielna", "Główna", "Słoneczna"]
 
     def szukaj_ulicy(self, cell):
         opis_list = cell.split(" ")
@@ -86,30 +89,31 @@ class Geoenrichment:
         plt.savefig(os.path.join(folder, field + "_map.jpg"), dpi=400, bbox_inches='tight')
 
     def haversine(self, row):
-        """
-              calculates distance to city center
-              """
-        import math
-        lon1 = row['longitude']
-        lat1 = row['latitude']
+            """
+                  calculates distance to city center
+                  """
+            import math
+            lon1 = row['longitude']
+            lat1 = row['latitude']
 
-        # coords of the city center
-        lon2 = 19.938
-        lat2 = 50.061
+            # coords of the city center
+            lon2 = 19.938
+            lat2 = 50.061
 
-        R = 6371000  # radius of Earth in meters
-        phi_1 = math.radians(lat1)
-        phi_2 = math.radians(lat2)
+            R = 6371000  # radius of Earth in meters
+            phi_1 = math.radians(lat1)
+            phi_2 = math.radians(lat2)
 
-        delta_phi = math.radians(lat2 - lat1)
-        delta_lambda = math.radians(lon2 - lon1)
+            delta_phi = math.radians(lat2 - lat1)
+            delta_lambda = math.radians(lon2 - lon1)
 
-        a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi_1) * math.cos(phi_2) * math.sin(delta_lambda / 2.0) ** 2
+            a = math.sin(delta_phi / 2.0) ** 2 + math.cos(phi_1) * math.cos(phi_2) * math.sin(delta_lambda / 2.0) ** 2
 
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-        meters = R * c  # output distance in meters
-        meters = round(meters)
-        return (meters)
+            c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+            meters = R * c  # output distance in meters
+            meters = round(meters)
+            return (meters)
+
 
     def dist_layer(self, geodataframe, warstwa_path, field):
         gdf_warstwa = gpd.read_file(warstwa_path)
@@ -128,23 +132,32 @@ class Geoenrichment:
         self.rob_liste_ulic(dataframe)
         #  2 - add field with street name base on list
         dataframe['ulica'] = dataframe['opis'].apply(self.szukaj_ulicy)
+
+        # usuniecie zbednmych napisow
+        tup = dataframe['dzielnica']
+        dataframe['dzielnica'] = [x.replace("Mieszkanie na sprzedaż:" ,"") for x in tup]
         dataframe['lokator_ulica_dzielnica'] = dataframe['dzielnica'] + ", " + dataframe['ulica']
         #  3 - geocode base one street name
+
         geokoduj = self.geokoduj(dataframe.loc[dataframe["ulica"].notnull()], 'lokator_ulica_dzielnica')
         located = geokoduj[0]
         il_ogloszen = located.shape[0]
         print('we have {} geocoded offers out of all {}'.format(il_ogloszen, dataframe.shape[0]))
+
         if il_ogloszen == 0:
+            print("nie ma zgeokodowanych ogloszen!!!")
             return 0
+
         # 4 - create longitude, laatitude and altitude from location column (returns tuple)
         located['point'] = located['geo_location'].apply(lambda loc: tuple(loc.point) if loc else None)
         # 5 - split point column into latitude, longitude and altitude columns
         located[['latitude', 'longitude', 'altitude']] = pd.DataFrame(located['point'].tolist(), index=located.index)
         # 6 - make geodataframe base on lat lon
-        gdf = self.make_gdf(located)
 
+        gdf = self.make_gdf(located)
         # 7 - plot geocoded offers
         # self.plot_offers(gdf, 'cena_za_metr', folder)
+
         return gdf
 
     def geoenrich(self, gdf, slownik_warstw, folder):

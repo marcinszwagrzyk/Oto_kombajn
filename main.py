@@ -20,7 +20,10 @@ class Otodomer:
         self.holdout = holdout
         self.holdout_cleaned = ""
         self.holdout_spatial = r'c:\Users\marci\git\Oto_klasor\holdout\mwm_spatial.csv'
-        self.colnames = ['opis', 'dzielnica', 'pokoje', 'cena', 'metraz', 'cena_za_metr', 'link', 'data']
+        self.colnames = ['opis', 'dzielnica', 'pokoje', 'cena', 'metraz', 'cena_za_metr', 'link', 'data', 'pietro',
+                         'l_pieter',
+                         'rok_bud']
+
         self.lista_holdout_pred =[]
 
     @staticmethod
@@ -38,11 +41,16 @@ class Otodomer:
         self.df = pd.read_csv(self.ogloszenia_robocze, sep=";", names=self.colnames, header=None, error_bad_lines=False)
         # najpierw polaczyc a pozniej geokodowac - join po opisie i skasowac tam, gdzie sie zgadzaja
         print("przed czyszczeniem mamy {} rekordów".format(self.df.shape[0]))
-        self.df_cleaned = self.data_cleaning(self.df, numeric_columns=['cena_za_metr', 'metraz', 'cena'])
+        self.df_cleaned = self.data_cleaning(self.df, numeric_columns=['cena_za_metr', 'metraz', 'cena', 'pietro',
+                                                                       'l_pieter', 'rok_bud'])
+
+        print(self.df_cleaned.columns)
         print("przed gekodowaniem mamy {} rekordów".format(self.df_cleaned.shape[0]))
 
         gdf_geo_nowe = self.geoenrichment.make_spatial(self.df_cleaned)
+        print(gdf_geo_nowe.head())
         gdf_geo_nowe.to_csv(self.ogloszenia_nowe, sep=";")
+
         stare_gdf = pd.read_csv(self.ogloszenia_all, sep=";", error_bad_lines=False)
 
         # scalenie, usuniecie zbednych kolumn oraz duplikatow wierszy
@@ -57,7 +65,8 @@ class Otodomer:
         gdf_enriched.to_csv(self.ogloszenia_all, sep=";")
 
     def spacjalizauj_holdout(self):
-        self.holdout = pd.read_csv(self.holdout, sep=";", names=self.colnames, header=None, error_bad_lines=False)
+        self.holdout = pd.read_csv(self.holdout, sep=";", header=0, error_bad_lines=False)
+        print(self.holdout.head())
         self.holdout_cleaned = self.data_cleaning(self.holdout, numeric_columns=['cena_za_metr', 'metraz', 'cena'])
         holdout_nowe = self.geoenrichment.make_spatial(self.holdout_cleaned)
         holdout_nowe_enriched = self.geoenrichment.geoenrich(holdout_nowe, self.slownik_warstw, self.folder)
@@ -69,7 +78,7 @@ class Otodomer:
         self.gdf_holdout = pd.read_csv(self.holdout_spatial, sep=";", error_bad_lines=False)
 
         # analiza statystyczna
-        lista_zmiennych = ['dst_center', 'metraz']
+        lista_zmiennych = ['dst_center', 'metraz', 'rok_bud', 'pietro', 'l_pieter']
         for k, v in self.slownik_warstw.items():
             lista_zmiennych.append(k)
 
