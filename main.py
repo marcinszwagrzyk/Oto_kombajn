@@ -84,11 +84,16 @@ class Otodomer:
         pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'linreg', cv=15)
         pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'ridge', cv=15)
         pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony,  'svm', self.folder)
+        pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony, 'random_forest', self.folder)
         pred = self.regression.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony,  'lasso_CV', cv=15)
 
         # predict holdout za pomoca regresji
         self.model = pred[0]
         self.lista_holdout_pred.append(self.regression.predict(self.model, lista_zmiennych, self.gdf_holdout, 'lasso_CV'))
+
+        # neural network - kompletnie fatalne wyniki !
+        # score_nn = self.nn.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony)
+        # print("score nn wynosi: ", score_nn)
 
         # NLP
         lista_zmiennych='opis'
@@ -97,7 +102,6 @@ class Otodomer:
         # predict holdout za pomoca nlp
         self.model = pred[0]
         self.lista_holdout_pred.append(self.regression.predict(self.model, lista_zmiennych, self.gdf_holdout, 'nlp'))
-
         df_holdout_pred = pd.concat(self.lista_holdout_pred, axis=1)
         df_holdout_pred = df_holdout_pred.loc[:, ~df_holdout_pred.columns.duplicated()]
         df_holdout_pred.to_csv(os.path.join(self.folder, "holdout_prediction.csv"))
@@ -105,12 +109,14 @@ class Otodomer:
         # # podsumewanie regresji
         df_pred = pred[1]
         df_pred['mean_regres'] = df_pred[['linreg', 'ridge', 'lasso_CV']].mean(axis=1)
-        df_pred['mean_predict'] = df_pred[['mean_regres', 'nlp', 'svm']].mean(axis=1)
+        df_pred['mean_predict'] = df_pred[['mean_regres', 'nlp', 'svm', 'random_forest']].mean(axis=1)
         df_pred.to_csv(os.path.join(self.folder, "prediction.csv"))
-        cols = ['cena_za_metr', 'mean_regres', 'nlp', 'mean_predict']
+        cols = ['cena_za_metr', 'mean_regres', 'nlp', 'mean_predict', 'random_forest']
         self.regression.pairplot(df_pred, cols, self.folder, "prediction")
 
-        # neural network - kompletnie fatalne wyniki !
-        # self.nn.fit_model(lista_zmiennych, 'cena_za_metr', self.gdf_polaczony)
+        linreg_corel  = dokladnosc_all = df_pred['cena_za_metr'].corr(df_pred['linreg'])
+        dokladnosc_all = df_pred['cena_za_metr'].corr(df_pred['mean_predict'])
+        print("corr sredniej oszacowania ceny z real wynosi ",  dokladnosc_all, "corr linreg - cena wynosi", linreg_corel)
+
 
 
