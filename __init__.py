@@ -35,7 +35,7 @@ if __name__ == '__main__':
             print(e)
 
         parser = Parseter(url,              # adres url
-                        2,                  # last page
+                        25,                # last page
                         ogloszenia_robocze, # robocze csv
                         ogloszenia_all,     # csv na polaczone (stare + nowe)
                         ogloszenia_nowe,    # csv na tylko nowe
@@ -48,16 +48,16 @@ if __name__ == '__main__':
 
     # bez web scrapingu
     elif opcja == 3:
-            try:
-                if os.path.exists(folder):
+        try:
+            if os.path.exists(folder):
                     os.remove(folder)
-                os.mkdir(folder)
-            except Exception as e:
-                print(e)
-                otodomer = Otodomer(slownik_warstw, ogloszenia_robocze, ogloszenia_nowe, ogloszenia_all, holdout,
+            os.mkdir(folder)
+        except Exception as e:
+            print(e)
+            otodomer = Otodomer(slownik_warstw, ogloszenia_robocze, ogloszenia_nowe, ogloszenia_all, holdout,
                                     folder)
-                otodomer.spacjalizauj_holdout()
-                otodomer.analizuj_df()
+            otodomer.spacjalizauj_holdout()
+            otodomer.analizuj_df()
 
 
 
