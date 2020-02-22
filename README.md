@@ -1,5 +1,5 @@
 Tool download offers with diffrent parameters from webpaage otodom.pl, then the tool geocode offers base on their description
-and subsequently geoenriching, by calculating distances between geolocated points and several spatial layers.
+and subsequently geoenriches it, by calculating distances between geolocated points and several spatial layers.
 
 Finally,  it apply multiple ML and DL models to predict housing prices.
 Tool generates raport elements, such as graphs and maps
