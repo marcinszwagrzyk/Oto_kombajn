@@ -1,2 +1,9 @@
-"# Oto_kombajn" 
-"# Oto_kombajn" 
+Tool download offers with diffrent parameters from webpaage otodom.pl, then the tool geocode offers base on their description
+and subsequently geoenriching, by calculating distances between geolocated points and several spatial layers.
+
+Finally,  it apply multiple ML and DL models to predict housing prices.
+Tool generates raport elements, such as graphs and maps
+
+![geolocated_offers](image.jpg)
+
+Holdout dataset is a list of offers, which prices are currently unavilable
