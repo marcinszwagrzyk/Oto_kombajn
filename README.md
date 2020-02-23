@@ -4,6 +4,6 @@ and subsequently geoenriches it, by calculating distances between geolocated poi
 Finally,  it apply multiple ML and DL models to predict housing prices.
 Tool generates raport elements, such as graphs and maps
 
-![DASHBOARD LINK](https://public.tableau.com/profile/marcin.szwagrzyk#!/vizhome/Cracow_housing_prices/Dashboard1?publish=yes)
+[DASHBOARD LINK](https://public.tableau.com/profile/marcin.szwagrzyk#!/vizhome/Cracow_housing_prices/Dashboard1?publish=yes)
 
 Holdout dataset is a list of offers, which prices are currently unavilable
